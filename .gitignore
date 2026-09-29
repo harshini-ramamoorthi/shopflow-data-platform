@@ -1,0 +1,39 @@
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Generated pipeline data
+data/
+*.parquet
+*.csv
+
+# Local databases
+*.duckdb
+*.db
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+
+# dbt generated files
+dbt_shopflow/target/
+dbt_shopflow/dbt_packages/
+dbt_shopflow/logs/
+
+# Airflow backup
+airflow_backup_before_setup/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+dbt_shopflow/models/example/

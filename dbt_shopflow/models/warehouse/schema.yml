@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: fact_orders
+    description: "Fact table containing one row per order item."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+
+      - name: product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_key
+
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+      - name: payment_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_payment')
+                field: payment_key
+
+      - name: quantity
+        data_tests:
+          - not_null
+
+      - name: revenue
+        data_tests:
+          - not_null
