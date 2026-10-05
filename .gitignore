@@ -37,3 +37,7 @@ airflow_backup_before_setup/
 .DS_Store
 Thumbs.db
 dbt_shopflow/models/example/
+
+# Test and backup generated artifacts
+backups/
+tests/scd2_fixture/
