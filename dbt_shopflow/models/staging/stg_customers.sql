@@ -8,4 +8,4 @@ SELECT
     country,
     signup_date,
     updated_at
-FROM read_parquet('data/staging/customers/*.parquet')
+FROM read_parquet('../data/staging/customers/*.parquet')

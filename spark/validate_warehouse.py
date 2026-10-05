@@ -10,6 +10,31 @@ spark = (
 
 fact = spark.read.parquet("data/warehouse/fact_orders")
 
+# --------------------------------------------------
+# Order Date Validation
+# --------------------------------------------------
+
+orders = spark.read.parquet("data/staging/orders")
+customers = spark.read.parquet("data/staging/customers")
+
+orders_with_customers = orders.join(
+    customers.select("customer_id", "signup_date"),
+    on="customer_id",
+    how="inner"
+)
+
+invalid_order_dates = orders_with_customers.filter(
+    col("order_date") < col("signup_date")
+).count()
+
+print("Orders before customer signup:", invalid_order_dates)
+
+if invalid_order_dates == 0:
+    print("PASS: All orders occur on or after customer signup.")
+else:
+    print("FAIL: Orders found before customer signup.")
+    
+
 fact_count = fact.count()
 
 print("Fact rows:", fact_count)

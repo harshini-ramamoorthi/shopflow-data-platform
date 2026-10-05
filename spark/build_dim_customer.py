@@ -1,6 +1,9 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import monotonically_increasing_id
-
+from pyspark.sql.functions import (
+    monotonically_increasing_id,
+    col,
+    lit
+)
 
 spark = (
     SparkSession.builder
@@ -32,6 +35,15 @@ df = df.withColumn(
     monotonically_increasing_id()
 )
 
+df = df.withColumn("effective_from", col("signup_date").cast("timestamp"))
+
+df = df.withColumn(
+    "effective_to",
+    lit(None).cast("timestamp")
+)
+
+df = df.withColumn("is_current", lit(True))
+
 
 df = df.select(
     "customer_key",
@@ -42,7 +54,10 @@ df = df.select(
     "city",
     "state",
     "country",
-    "signup_date"
+    "signup_date",
+    "effective_from",
+    "effective_to",
+    "is_current"
 )
 
 

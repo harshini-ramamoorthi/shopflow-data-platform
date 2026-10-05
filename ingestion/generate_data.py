@@ -186,13 +186,35 @@ cursor.execute("SELECT COUNT(*) FROM orders")
 order_count = cursor.fetchone()[0]
 
 if order_count == 0:
-
     for i in range(1, 301):
-
         customer_id = random.randint(1, 100)
 
-        order_date = datetime.now() - timedelta(
-            days=random.randint(1, 365)
+        # Get the selected customer's signup date
+        cursor.execute(
+            """
+            SELECT signup_date
+            FROM customers
+            WHERE customer_id = %s
+            """,
+            (customer_id,)
+        )
+
+        signup_date = cursor.fetchone()[0]
+
+        # Generate an order date on or after signup date
+        signup_datetime = datetime.combine(
+            signup_date,
+            datetime.min.time()
+        )
+
+        current_datetime = datetime.now()
+
+        seconds_since_signup = int(
+            (current_datetime - signup_datetime).total_seconds()
+        )
+
+        order_date = signup_datetime + timedelta(
+            seconds=random.randint(0, seconds_since_signup)
         )
 
         order_status = random.choice(order_statuses)

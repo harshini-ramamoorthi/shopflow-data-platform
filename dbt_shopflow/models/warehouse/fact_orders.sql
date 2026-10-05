@@ -8,4 +8,4 @@ SELECT
     unit_price,
     discount,
     revenue
-FROM read_parquet('data/warehouse/fact_orders/*.parquet')
+FROM read_parquet('../data/warehouse/fact_orders/*.parquet')

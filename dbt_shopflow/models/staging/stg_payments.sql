@@ -5,4 +5,4 @@ SELECT
     payment_status,
     amount,
     payment_date
-FROM read_parquet('data/staging/payments/*.parquet')
+FROM read_parquet('../data/staging/payments/*.parquet')

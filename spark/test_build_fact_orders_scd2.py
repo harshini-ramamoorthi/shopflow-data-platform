@@ -11,7 +11,7 @@ spark = (
 orders = spark.read.parquet("data/staging/orders")
 order_items = spark.read.parquet("data/staging/order_items")
 
-dim_customer = spark.read.parquet("data/warehouse/dim_customer")
+dim_customer = spark.read.parquet("tests/scd2_fixture/dim_customer_candidate")
 dim_product = spark.read.parquet("data/warehouse/dim_product")
 dim_date = spark.read.parquet("data/warehouse/dim_date")
 dim_payment = spark.read.parquet("data/warehouse/dim_payment")
@@ -80,7 +80,7 @@ fact.show(10, truncate=False)
 
 print("Fact rows:", fact.count())
 
-output_path = "data/warehouse/fact_orders"
+output_path = "tests/scd2_fixture/fact_orders_candidate"
 
 (
     fact.write

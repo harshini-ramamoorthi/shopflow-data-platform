@@ -7,6 +7,9 @@ from pyspark.sql.functions import (
 from pathlib import Path
 import shutil
 
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number
+
 
 # Start Spark
 spark = SparkSession.builder \
@@ -27,7 +30,32 @@ incremental_df = spark.read \
     .option("inferSchema", True) \
     .csv(incremental_path)
 
-print("Incremental records:", incremental_df.count())
+incremental_count = incremental_df.count()
+
+print("Incremental records:", incremental_count)
+
+if incremental_count == 0:
+    print("No customer changes found. Skipping SCD2 update.")
+    spark.stop()
+    raise SystemExit(0)
+
+
+# Check for multiple records for the same customer
+duplicate_customers = (
+    incremental_df
+    .groupBy("customer_id")
+    .count()
+    .filter(col("count") > 1)
+    .select("customer_id")
+    .collect()
+)
+
+if duplicate_customers:
+    duplicate_ids = [row["customer_id"] for row in duplicate_customers]
+    print("Multiple changes found for the same customer:", duplicate_ids)
+    print("Please resolve duplicate customer records before running SCD2.")
+    spark.stop()
+    raise SystemExit(1)
 
 
 # Read existing customer dimension
@@ -45,49 +73,101 @@ print("Current maximum customer key:", max_key)
 
 
 # Get the timestamp of the customer change
-change_timestamp = incremental_df.select(
-    spark_max("updated_at")
-).collect()[0][0]
-
-print("Change timestamp:", change_timestamp)
-
-
-# Identify the changed customer
-changed_customer_id = incremental_df.select(
+# Get all changed customer IDs
+changed_ids = incremental_df.select(
     "customer_id"
-).collect()[0][0]
+).distinct()
 
-print("Changed customer ID:", changed_customer_id)
+# Get each customer's own change timestamp
+updates = incremental_df.select(
+    "customer_id",
+    col("updated_at").alias("change_timestamp")
+)
+
+# Check that every changed customer has exactly one current version
+current_counts = dim_customer \
+    .filter(col("is_current") == True) \
+    .groupBy("customer_id") \
+    .count()
+
+invalid_current = changed_ids.join(
+    current_counts,
+    "customer_id",
+    "left"
+).filter(
+    col("count").isNull() | (col("count") != 1)
+).collect()
+
+if invalid_current:
+    invalid_ids = [row["customer_id"] for row in invalid_current]
+    print("Customers without exactly one current version:", invalid_ids)
+    spark.stop()
+    raise SystemExit(1)
 
 
-# Expire the existing current version
-expired_df = dim_customer \
-    .filter(col("customer_id") == changed_customer_id) \
+# Check that each change timestamp is later than the current version's start
+current_updates = dim_customer \
+    .filter(col("is_current") == True) \
+    .join(updates, "customer_id", "inner")
+
+invalid_timestamps = current_updates.filter(
+    col("change_timestamp").isNull() |
+    col("effective_from").isNull() |
+    (col("change_timestamp") <= col("effective_from"))
+).select(
+    "customer_id"
+).collect()
+
+if invalid_timestamps:
+    invalid_ids = [row["customer_id"] for row in invalid_timestamps]
+    print("Invalid change timestamps for customers:", invalid_ids)
+    spark.stop()
+    raise SystemExit(1)
+
+
+# Expire the current version of each changed customer
+expired_df = current_updates \
     .withColumn(
         "effective_to",
-        lit(change_timestamp)
+        col("change_timestamp")
     ) \
     .withColumn(
         "is_current",
         lit(False)
-    )
+    ) \
+    .drop("change_timestamp")
 
 
-# Keep all customers that were not changed
-unchanged_df = dim_customer.filter(
-    col("customer_id") != changed_customer_id
+# Preserve customers that were not changed
+unchanged_df = dim_customer.join(
+    changed_ids,
+    "customer_id",
+    "left_anti"
 )
 
 
-# Read the new customer version
+# Preserve older historical versions of changed customers
+historical_df = dim_customer \
+    .filter(col("is_current") == False) \
+    .join(
+        changed_ids,
+        "customer_id",
+        "inner"
+    )
+
+
+# Assign a unique customer key to every new version
+key_window = Window.orderBy("customer_id")
+
 new_customer = incremental_df \
     .withColumn(
         "customer_key",
-        lit(max_key + 1)
+        lit(max_key if max_key is not None else 0) +
+        row_number().over(key_window)
     ) \
     .withColumn(
         "effective_from",
-        col("updated_at")
+        col("updated_at").cast("timestamp")
     ) \
     .withColumn(
         "effective_to",
@@ -116,8 +196,9 @@ new_customer = new_customer.select(
 )
 
 
-# Combine all records
+# Combine all dimension records
 final_dim_customer = unchanged_df \
+    .unionByName(historical_df) \
     .unionByName(expired_df) \
     .unionByName(new_customer)
 
@@ -134,14 +215,34 @@ print("Temporary SCD2 write successful.")
 
 
 # Replace the warehouse only after successful write
+# Replace the warehouse while keeping a recoverable backup
 warehouse = Path(warehouse_path)
 temp = Path(temp_path)
+backup = Path("data/warehouse/dim_customer_scd2_backup")
+
+if backup.exists():
+    print("Backup already exists. Stop and inspect it before continuing.")
+    spark.stop()
+    raise SystemExit(1)
+
+if not temp.exists():
+    print("Temporary output was not found. Existing warehouse was not changed.")
+    spark.stop()
+    raise SystemExit(1)
 
 if warehouse.exists():
-    shutil.rmtree(warehouse)
+    warehouse.rename(backup)
 
-shutil.move(temp, warehouse)
+try:
+    temp.rename(warehouse)
+except Exception:
+    # Restore the original warehouse if the replacement fails
+    if backup.exists() and not warehouse.exists():
+        backup.rename(warehouse)
+    raise
 
+print("SCD2 output installed successfully.")
+print("Previous dimension retained at:", backup)
 print("SCD Type 2 customer update completed successfully!")
 
 
@@ -150,12 +251,14 @@ final_df = spark.read.parquet(warehouse_path)
 
 print("Final warehouse records:", final_df.count())
 
-print("Customer history:")
-final_df.filter(
-    col("customer_id") == changed_customer_id
+print("Updated customer history:")
+final_df.join(
+    changed_ids,
+    "customer_id",
+    "inner"
 ).orderBy(
+    "customer_id",
     "effective_from"
 ).show(truncate=False)
-
 
 spark.stop()

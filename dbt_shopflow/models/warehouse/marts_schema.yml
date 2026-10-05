@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: mart_daily_sales
+    description: >
+      Daily sales summary aggregated from the order-item fact table.
+      Each row represents one date with at least one order.
+
+    columns:
+      - name: full_date
+        description: Calendar date of sales activity.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: total_orders
+        description: Number of distinct orders placed on the date.
+        data_tests:
+          - not_null
+
+      - name: total_items_sold
+        description: Total quantity of items sold on the date.
+        data_tests:
+          - not_null
+
+      - name: total_revenue
+        description: Sum of order-item revenue for the date.
+        data_tests:
+          - not_null
+
+      - name: average_order_value
+        description: Total daily revenue divided by distinct daily orders.
+        data_tests:
+          - not_null
+
+  - name: mart_product_performance
+    description: >
+      Product-level sales summary with one row per product.
+
+    columns:
+      - name: product_key
+        description: Unique warehouse product key.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_key
+
+      - name: total_orders
+        data_tests:
+          - not_null
+
+      - name: total_units_sold
+        data_tests:
+          - not_null
+
+      - name: gross_sales
+        data_tests:
+          - not_null
+
+      - name: total_discount
+        data_tests:
+          - not_null
+
+      - name: total_revenue
+        data_tests:
+          - not_null
+
+  - name: mart_customer_performance
+    description: >
+      Customer-version sales summary with one row per customer key.
+      Includes customers without purchases.
+
+    columns:
+      - name: customer_key
+        description: Unique warehouse customer-version key.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+
+      - name: customer_id
+        data_tests:
+          - not_null
+
+      - name: total_orders
+        data_tests:
+          - not_null
+
+      - name: total_items_purchased
+        data_tests:
+          - not_null
+
+      - name: total_revenue
+        data_tests:
+          - not_null       

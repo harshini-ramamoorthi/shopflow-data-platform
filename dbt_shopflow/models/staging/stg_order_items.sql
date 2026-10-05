@@ -6,4 +6,4 @@ SELECT
     unit_price,
     discount,
     line_total
-FROM read_parquet('data/staging/order_items/*.parquet')
+FROM read_parquet('../data/staging/order_items/*.parquet')
