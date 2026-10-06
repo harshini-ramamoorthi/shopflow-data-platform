@@ -1,0 +1,7 @@
+dbt_shopflow:
+  outputs:
+    dev:
+      type: duckdb
+      path: /opt/shopflow/data/shopflow.duckdb
+      threads: 1
+  target: dev

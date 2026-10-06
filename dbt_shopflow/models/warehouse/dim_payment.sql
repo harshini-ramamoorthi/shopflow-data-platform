@@ -4,4 +4,4 @@ SELECT
     order_id,
     payment_method,
     payment_status
-FROM read_parquet('../data/warehouse/dim_payment/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/warehouse/dim_payment/*.parquet')

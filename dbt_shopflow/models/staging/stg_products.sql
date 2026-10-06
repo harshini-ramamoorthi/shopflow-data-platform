@@ -7,4 +7,4 @@ SELECT
     cost_price,
     supplier,
     updated_at
-FROM read_parquet('../data/staging/products/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/staging/products/*.parquet')

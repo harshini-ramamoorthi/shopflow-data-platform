@@ -11,4 +11,4 @@ SELECT
     effective_from,
     effective_to,
     is_current
-FROM read_parquet('../data/warehouse/dim_customer/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/warehouse/dim_customer/*.parquet')

@@ -5,4 +5,4 @@ SELECT
     month,
     month_name,
     quarter
-FROM read_parquet('../data/warehouse/dim_date/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/warehouse/dim_date/*.parquet')

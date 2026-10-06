@@ -6,4 +6,4 @@ SELECT
     shipping_city,
     shipping_state,
     updated_at
-FROM read_parquet('../data/staging/orders/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/staging/orders/*.parquet')

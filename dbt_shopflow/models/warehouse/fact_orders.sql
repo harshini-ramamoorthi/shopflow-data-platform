@@ -8,4 +8,7 @@ SELECT
     unit_price,
     discount,
     revenue
-FROM read_parquet('../data/warehouse/fact_orders/*.parquet')
+FROM read_parquet('{{ var("shopflow_data_path") }}/warehouse/fact_orders/*.parquet')
+
+
+

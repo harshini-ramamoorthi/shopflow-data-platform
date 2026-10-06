@@ -20,6 +20,11 @@ from airflow.hooks.base import BaseHook
 PROJECT_DIR = Path("/opt/shopflow")
 PYTHON = "/home/airflow/shopflow-venv/bin/python"
 
+DBT_PROJECT_DIR = PROJECT_DIR / "dbt_shopflow"
+DBT_PROFILES_DIR = Path("/opt/airflow/config")
+DBT_TARGET_PATH = Path("/tmp/dbt-target")
+DBT_LOG_PATH = Path("/tmp/dbt-logs")
+
 
 def run_shopflow_script(script_name: str) -> None:
     """Run one existing ShopFlow script from the project directory."""
@@ -63,6 +68,26 @@ def run_shopflow_script(script_name: str) -> None:
     )
 
 
+def run_dbt(command: str) -> None:
+    dbt_command = [
+        "/home/airflow/shopflow-venv/bin/dbt",
+        command,
+        "--profiles-dir", str(DBT_PROFILES_DIR),
+        "--target-path", str(DBT_TARGET_PATH),
+        "--log-path", str(DBT_LOG_PATH),
+    ]
+
+    env = os.environ.copy()
+    env["SHOPFLOW_DATA_PATH"] = "/opt/shopflow/data"
+
+    print(f"Running dbt {command}")
+    subprocess.run(
+        dbt_command,
+        cwd=DBT_PROJECT_DIR,
+        env=env,
+        check=True,
+    )
+    
 @dag(
     dag_id="shopflow_etl_pipeline",
     description=(
@@ -137,6 +162,15 @@ def shopflow_etl_pipeline():
     build_payment_analysis = run_script.override(task_id="build_payment_analysis")(
         "spark/build_payment_analysis.py"
     )
+    
+        # 5.5. Run dbt models and dbt data tests.
+    @task
+    def run_dbt_task(command: str) -> None:
+        run_dbt(command)
+
+    dbt_run = run_dbt_task.override(task_id="dbt_run")("run")
+    dbt_test = run_dbt_task.override(task_id="dbt_test")("test")
+    
 
     # 6. Run warehouse and analytics validations.
     validate_warehouse = run_script.override(task_id="validate_warehouse")(
@@ -149,42 +183,33 @@ def shopflow_etl_pipeline():
         "spark/validate_analytics.py"
     )
 
-    # Define the task dependencies.
-    extract_raw >> [
-        transform_customers,
-        transform_products,
-        transform_orders,
-        transform_order_items,
-        transform_payments,
-    ]
+        # Define the task dependencies.
+    # Run Spark transformations sequentially to avoid multiple
+    # Spark JVMs competing for resources inside the Airflow worker.
 
-    transform_tasks = [
-        transform_customers,
-        transform_products,
-        transform_orders,
-        transform_order_items,
-        transform_payments,
-    ]
+    extract_raw >> transform_customers
+    transform_customers >> transform_products
+    transform_products >> transform_orders
+    transform_orders >> transform_order_items
+    transform_order_items >> transform_payments
 
-    dimension_tasks = [
+    # Build warehouse dimensions after all staging transformations.
+    transform_payments >> [
         build_dim_customer,
         build_dim_product,
         build_dim_payment,
         build_dim_date,
     ]
 
-    for transform_task in transform_tasks:
-        transform_task >> dimension_tasks
-
+    # Build the central fact table after warehouse dimensions are ready.
     [
-        transform_orders,
-        transform_order_items,
         build_dim_customer,
         build_dim_product,
         build_dim_payment,
         build_dim_date,
     ] >> build_fact_orders
 
+    # Existing PySpark analytics remain in the pipeline.
     build_fact_orders >> [
         build_daily_sales,
         build_product_performance,
@@ -193,11 +218,14 @@ def shopflow_etl_pipeline():
         build_payment_analysis,
     ]
 
-    build_fact_orders >> [
-        validate_warehouse,
-        check_customers_without_sales,
-    ]
+    # Validate the warehouse before running dbt.
+    build_fact_orders >> validate_warehouse
+    validate_warehouse >> check_customers_without_sales
 
+
+    validate_warehouse >> dbt_run >> dbt_test
+
+    # Validate the existing PySpark analytics.
     [
         build_daily_sales,
         build_product_performance,
