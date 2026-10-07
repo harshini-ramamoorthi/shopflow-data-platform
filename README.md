@@ -224,3 +224,68 @@ The completed pipeline has been validated across:
 * Data lineage
 * Additional analytics
 * Production-scale infrastructure
+
+## Pipeline Orchestration
+
+The complete ShopFlow data pipeline is orchestrated using Apache Airflow.
+
+![Airflow DAG](screenshots/shopflow-airflow-dag.png)
+
+The DAG coordinates the pipeline from PostgreSQL ingestion through PySpark transformations, warehouse construction, validation, dbt analytics, and final analytics validation.
+
+### Workflow
+
+```text
+PostgreSQL
+    ↓
+Extract Raw Data
+    ↓
+PySpark Transformations
+    ↓
+Build Dimensions
+    ↓
+Build Fact Table
+    ↓
+Warehouse Validation
+    ↓
+dbt Run
+    ↓
+dbt Test
+    ↓
+Analytics Validation
+
+## Power BI Dashboard
+
+The final dbt analytics marts are connected to Power BI to provide an interactive business analytics dashboard for the ShopFlow Data Platform.
+
+### Business Analytics
+
+![Business Analytics Dashboard](screenshots/dashboard-business-analytics.png)
+
+Provides an overview of:
+- Total revenue
+- Total orders
+- Units sold
+- Average order value
+- Revenue by category
+- Daily revenue trends
+
+### Product & Payment Analytics
+
+![Product & Payment Analytics Dashboard](screenshots/dashboard-product-payment.png)
+
+Provides insights into:
+- Top 10 products by revenue
+- Payment amount by payment method
+- Payment status analysis
+
+### Customer Analytics
+
+![Customer Analytics Dashboard](screenshots/dashboard-customer-analytics.png)
+
+Provides insights into:
+- Top 10 customers by revenue
+- Customer-level sales performance
+
+The dashboards are powered by the five official dbt analytics marts:
+`mart_daily_sales`, `mart_product_performance`, `mart_category_performance`, `mart_customer_performance`, and `mart_payment_analysis`.
