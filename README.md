@@ -224,5 +224,3 @@ The completed pipeline has been validated across:
 * Data lineage
 * Additional analytics
 * Production-scale infrastructure
-
-````
