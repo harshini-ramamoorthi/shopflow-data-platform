@@ -41,3 +41,9 @@ dbt_shopflow/models/example/
 # Test and backup generated artifacts
 backups/
 tests/scd2_fixture/
+
+# Local Airflow user configuration
+airflow/config/.user.yml
+
+# Local DAG backups
+airflow/dags/*.bak
