@@ -1,63 +1,228 @@
-# ShopFlow Data Warehouse & ETL Platform
+# ShopFlow Data Platform
 
-An end-to-end e-commerce data engineering platform for ingesting,
-transforming, validating, orchestrating, and analyzing transactional data.
+An end-to-end e-commerce data engineering platform built with PostgreSQL, Apache Airflow, PySpark, Parquet, dbt, and Power BI.
 
-## Project Overview
+## Architecture
 
-ShopFlow simulates a real-world e-commerce data platform where
-transactional data is extracted from an operational PostgreSQL database,
-processed through an ETL pipeline, and loaded into a dimensional data
-warehouse for analytics.
-
-The platform is designed around:
-
-- Batch data ingestion
-- Data validation and quality checks
-- ETL/ELT processing
-- Dimensional data modeling
-- Incremental data loading
-- Historical data tracking
-- Workflow orchestration
-- SQL analytics
-- Business intelligence dashboards
-
-## Target Architecture
-
-PostgreSQL / CSV / JSON
-        ↓
-Raw Data Layer
-        ↓
-Data Validation
-        ↓
+```text
+PostgreSQL
+    ↓
+Apache Airflow
+    ↓
 PySpark ETL
-        ↓
-BigQuery
-        ↓
-dbt Transformations
-        ↓
-Dimensional Data Warehouse
-        ↓
-SQL Analytics
-        ↓
-Looker Studio
+    ↓
+Parquet Warehouse
+    ↓
+dbt Analytics Marts
+    ↓
+Power BI
+````
 
-## Technologies
+## Overview
 
-- Python
-- SQL
-- PySpark
-- PostgreSQL
-- Google BigQuery
-- Google Cloud Storage
-- Apache Airflow
-- dbt
-- Docker
-- GitHub
-- Looker Studio
+ShopFlow simulates a production-style e-commerce data platform for customers, products, orders, order items, and payments.
 
-## Current Implementation Status
+The platform demonstrates:
 
-The local pipeline baseline is implemented using PostgreSQL, Python, PySpark,
-and dbt. Airflow orchestration and the cloud-based components shown in the
-target architecture are planned next.
+* Batch and incremental data ingestion
+* PySpark ETL and warehouse construction
+* Dimensional data modeling
+* Slowly Changing Dimension Type 2 (SCD2)
+* Parquet-based analytical storage
+* Apache Airflow orchestration
+* dbt analytics modeling and testing
+* Power BI dashboards
+* Data-quality and pipeline validation
+
+## Data Warehouse
+
+### Dimensions
+
+* `dim_customer`
+* `dim_product`
+* `dim_payment`
+* `dim_date`
+
+### Fact
+
+* `fact_orders`
+
+`dim_customer` uses **Slowly Changing Dimension Type 2** to preserve historical customer records.
+
+## Pipeline
+
+```text
+PostgreSQL
+    ↓
+Incremental Extraction
+    ↓
+PySpark Transformations
+    ↓
+Dimension & Fact Construction
+    ↓
+Parquet Warehouse
+    ↓
+dbt Staging & Analytics
+    ↓
+Power BI
+```
+
+Apache Airflow orchestrates the complete workflow, including extraction, transformation, warehouse construction, validation, dbt execution, and testing.
+
+Main DAG:
+
+```text
+airflow/dags/shopflow_etl.py
+```
+
+## dbt Analytics Layer
+
+The dbt project contains **17 models** and **47 automated tests**.
+
+### Official Analytics Marts
+
+* `mart_customer_performance`
+* `mart_daily_sales`
+* `mart_product_performance`
+* `mart_category_performance`
+* `mart_payment_analysis`
+
+These marts form the official reporting layer consumed by Power BI.
+
+### Data Quality
+
+Automated validation covers:
+
+* Uniqueness
+* Not-null constraints
+* Referential integrity
+* Accepted values
+* Revenue calculations
+* Quantity validation
+* Revenue validation
+* SCD2 data integrity
+
+**Validation result: 47/47 dbt tests passed.**
+
+## Power BI
+
+The project includes a three-page business intelligence dashboard.
+
+### Business Analytics
+
+* Total Revenue
+* Total Orders
+* Units Sold
+* Average Order Value
+* Revenue by Category
+* Daily Revenue Trend
+
+### Product & Payment Analytics
+
+* Top 10 Products by Revenue
+* Payment Amount by Method
+* Payment Status Analysis
+
+### Customer Analytics
+
+* Top 10 Customers by Revenue
+* Customer Performance
+
+## Technology Stack
+
+| Technology     | Purpose                          |
+| -------------- | -------------------------------- |
+| Python         | Ingestion and pipeline utilities |
+| PostgreSQL     | Source database                  |
+| PySpark        | ETL and warehouse construction   |
+| Apache Airflow | Workflow orchestration           |
+| Parquet        | Analytical storage               |
+| DuckDB         | dbt analytical engine            |
+| dbt            | Analytics modeling and testing   |
+| Power BI       | Business intelligence            |
+| Docker         | Containerization                 |
+| Git/GitHub     | Version control                  |
+
+## Project Structure
+
+```text
+shopflow-data-platform/
+│
+├── airflow/
+│   ├── dags/
+│   │   └── shopflow_etl.py
+│   ├── Dockerfile
+│   └── docker-compose.yaml
+│
+├── dbt_shopflow/
+│   ├── models/
+│   │   ├── staging/
+│   │   └── warehouse/
+│   ├── tests/
+│   └── dbt_project.yml
+│
+├── ingestion/
+│   ├── extract_raw.py
+│   ├── extract_incremental.py
+│   ├── update_watermark.py
+│   └── generate_data.py
+│
+├── spark/
+│   ├── transform_*.py
+│   ├── build_dim_*.py
+│   ├── build_fact_orders.py
+│   ├── update_dim_customer_scd2.py
+│   └── validate_*.py
+│
+├── sql/
+├── tests/
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+└── README.md
+```
+
+## Running the Project
+
+Configure the environment using `.env.example`, then start the Airflow environment:
+
+```bash
+docker compose -f airflow/docker-compose.yaml up --build -d
+```
+
+Trigger the `shopflow_etl` DAG from the Airflow UI.
+
+To run dbt independently:
+
+```bash
+cd dbt_shopflow
+dbt run
+dbt test
+```
+
+## Validation
+
+The completed pipeline has been validated across:
+
+* PostgreSQL ingestion
+* Incremental extraction
+* PySpark transformations
+* Dimensional warehouse construction
+* Customer SCD2 processing
+* Parquet storage
+* Airflow orchestration
+* dbt models and tests
+* Warehouse validation
+* Analytics validation
+* Power BI dashboards
+
+## Future Enhancements
+
+* Cloud deployment
+* CI/CD integration
+* Pipeline monitoring and alerting
+* Data lineage
+* Additional analytics
+* Production-scale infrastructure
+
+````
