@@ -253,8 +253,9 @@ dbt Run
 dbt Test
     ↓
 Analytics Validation
+```
 
-## Power BI Dashboard
+### Power BI Dashboard
 
 The final dbt analytics marts are connected to Power BI to provide an interactive business analytics dashboard for the ShopFlow Data Platform.
 
